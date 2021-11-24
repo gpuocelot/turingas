@@ -1,3 +1,7 @@
+One more benchmark added to try to achieve hardware(T4 GPU used currently) fp32 peak performance in `examples/bench` directory.
+
+---
+
 # TuringAs
 An open source SASS assembler for NVIDIA Volta, Turing, and Ampere GPUs.
 
