@@ -1,0 +1,55 @@
+all:
+	python -m turingas.main -i fp32ffma.sass -o fp32ffma.cubin
+	nvcc -O0 -Xcicc -O0 -Xptxas -O0  -arch=sm_75 main.cu -lcuda -o test
+
+clean:
+	rm fp32ffma.cubin test
+(base) pmixer@huangzan flops % ls
+Makefile	fp32ffma.cubin	fp32ffma.sass	main.cu
+(base) pmixer@huangzan flops % cat fp32ffma.sass 
+<params>
+output, 8
+</params>
+
+<regs>
+0-7 ~ output0, output1, tid, offset, target, start, end, iter
+16-30 ~ mul, loop_content_len, counter, loop_num, accum, add, sme
+31-33 ~ hmma_mul1, hmma_mul2, hmma_add
+</regs>
+
+--:-:1:-:5    S2R tid, SR_TID.X;
+--:-:-:-:2    MOV output0, output[0];
+--:-:-:-:5    MOV output1, output[1];
+02:-:-:-:6    SHF.L offset, tid, 2, RZ;
+--:-:-:-:5    MOV offset, RZ;
+--:-:-:-:5    MOV iter, RZ;
+--:-:-:-:1    CS2R start, SR_CLOCKLO;
+
+--:-:-:-:5    MOV loop_content_len, 159;
+--:-:-:-:5    MOV counter, RZ;
+--:-:-:-:5    MOV loop_num, 10000000;
+--:-:-:-:5    MOV accum, RZ;
+--:-:-:-:5    MOV mul, 1;
+--:-:-:-:5    MOV add, 1;
+
+LOOP0:
+<code>
+out = []
+out.append('--:-:-:-:2    IADD3 counter, counter, 1, RZ;')
+for i in range(159):
+  out.append(f'--:-:-:-:4    FFMA accum, mul, accum, 1;')
+#  out.append(f'--:-:-:-:3    IADD3 sme, sme, 1, RZ;')
+#  out.append(f'--:-:-:-:8    FADD add, add, 1;')
+#  out.append(f'08:4:-:-:- HMMA.884.F16.F16.STEP0 hmma_add, hmma_mul1.reuse.ROW, hmma_mul2.reuse.COL, hmma_add;')
+#  out.append(f'0a:8:4:-:- HMMA.884.F16.F16.STEP2 hmma_add, hmma_mul1.ROW, hmma_mul2.COL, hmma_add;')
+out.append(f'--:-:-:-:6    ISETP.LT.AND P1, PT, counter, 10000000, PT;')
+out.append('--:-:-:-:2  @P1 BRA LOOP0;')
+out_ = '\n'.join(out) + '\n'
+</code>
+
+--:-:-:-:5    CS2R end, SR_CLOCKLO;
+--:-:-:-:5    IADD3 end, end, -start, RZ;
+# --:-:-:-:5    FFMA sme, start, -end, accum;
+--:-:-:-:2    STG.E.GPU [output0], end;
+
+--:-:-:-:2    EXIT;
