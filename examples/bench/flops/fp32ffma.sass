@@ -1,12 +1,3 @@
-all:
-	python -m turingas.main -i fp32ffma.sass -o fp32ffma.cubin
-	nvcc -O0 -Xcicc -O0 -Xptxas -O0  -arch=sm_75 main.cu -lcuda -o test
-
-clean:
-	rm fp32ffma.cubin test
-(base) pmixer@huangzan flops % ls
-Makefile	fp32ffma.cubin	fp32ffma.sass	main.cu
-(base) pmixer@huangzan flops % cat fp32ffma.sass 
 <params>
 output, 8
 </params>
